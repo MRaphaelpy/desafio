@@ -2,15 +2,42 @@ import 'dart:convert';
 import 'dart:io';
 
 void main() async {
-  final file = File("faturamento.json");
-  final contents = await file.readAsString();
-  final List<dynamic> data = jsonDecode(contents);
+  await processarFaturamento('dados.json', 'json');
 
+  await processarFaturamento('dados (2).xml', 'xml');
+}
+
+Future<void> processarFaturamento(String filePath, String fileType) async {
   List<double> faturamentoDiario = [];
-  for (var dia in data) {
-    if (dia['valor'] > 0) {
-      faturamentoDiario.add(dia['valor']);
+
+  if (fileType == 'json') {
+    final file = File(filePath);
+    final contents = await file.readAsString();
+    final List<dynamic> data = jsonDecode(contents);
+
+    for (var dia in data) {
+      if (dia['valor'] > 0) {
+        faturamentoDiario.add(dia['valor']);
+      }
     }
+  } else if (fileType == 'xml') {
+    final file = File(filePath);
+    final contents = await file.readAsString();
+    final rows = contents.split('<row>').skip(1);
+
+    for (var row in rows) {
+      final valorStart = row.indexOf('<valor>') + 7;
+      final valorEnd = row.indexOf('</valor>');
+      final valor = double.parse(row.substring(valorStart, valorEnd));
+      if (valor > 0) {
+        faturamentoDiario.add(valor);
+      }
+    }
+  }
+
+  if (faturamentoDiario.isEmpty) {
+    print('nenhum valor de faturamento encontrado');
+    return;
   }
 
   double menorFaturamento = faturamentoDiario[0];
@@ -32,7 +59,6 @@ void main() async {
     somaFaturamento += valor;
   }
   double mediaMensal = somaFaturamento / faturamentoDiario.length;
-
   int diasAcimaDaMedia = 0;
   for (var valor in faturamentoDiario) {
     if (valor > mediaMensal) {
@@ -40,7 +66,8 @@ void main() async {
     }
   }
 
-  print('menor valor de faturamento: $menorFaturamento');
-  print('maior valor de faturamento: $maiorFaturamento');
-  print('dias com faturamento acima da media: $diasAcimaDaMedia');
+  print('nome do arquivo: $filePath');
+  print('menor valor do faturamento: $menorFaturamento');
+  print('maior valor do faturamento: $maiorFaturamento');
+  print('dias do faturamento acima da media: $diasAcimaDaMedia');
 }
